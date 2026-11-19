@@ -1,11 +1,11 @@
 
-# PinRism.Lib - A .NET OCR Library powerd by Google Gemini
+# PinRism.Lib - A .NET OCR Library powered by Google Gemini
 
 `PinRism.Lib` is a lightweight and easy-to-use .NET 8 class library designed for Optical Character Recognition (OCR) powered by Gemini API. It allows you to extract text from images within your .NET applications with minimal setup.
 
 ## Features
 
--   **Google Gemini API Integration:** Utilizes `gemini-2.0-flash` for robust and accurate text extraction.
+-   **Google Gemini API Integration:** Utilizes `gemini-3.1-flash-lite` for robust and accurate text extraction.
     
 -   **Simple API:** Provides a clean `GeminiOcrService` for straightforward usage.
     
@@ -107,14 +107,6 @@ builder.Services.AddEndpointsApiExplorer(); // Optional, if using minimal APIs o
 // Configure HttpClient for GeminiOcrService
 builder.Services.AddHttpClient<GeminiOcrService>();
 
-// Register GeminiOcrService with dependency injection
-// Use AddSingleton for GeminiOcrService as it depends on HttpClient, which is managed by DI
-builder.Services.AddSingleton<GeminiOcrService>();
-
-// Load configuration
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-builder.Configuration.AddEnvironmentVariables();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -163,9 +155,6 @@ serviceCollection.AddLogging(configure => configure.AddConsole())
 // Add HttpClient for GeminiOcrService
 serviceCollection.AddHttpClient<GeminiOcrService>();
 
-// Register GeminiOcrService
-serviceCollection.AddSingleton<GeminiOcrService>();
-
 // Add configuration to DI
 serviceCollection.AddSingleton(configuration);
 
@@ -213,63 +202,40 @@ Console.WriteLine("OCR process finished.");
 
 ```
 
-### 4. Use the `GeminiOcrService` in Your Code
+## OCR HTTP endpoint
 
-Once injected, you can use `GeminiOcrService` in your controllers, services, or other classes:
+Set the `GeminiApiKey` environment variable before running the bundled API. Set
+`GeminiModel` to override the default `gemini-3.1-flash-lite` model.
 
-```
-// Example: In an ASP.NET Core Controller
-using Microsoft.AspNetCore.Mvc;
-using PinRism.Lib;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+Send a multipart POST to `/api/ocr/extract-text` with the image in the `file`
+field. Supported upload MIME types are JPEG, PNG, WebP, HEIC, and HEIF.
 
-[ApiController]
-[Route("api/[controller]")]
-public class MyOcrController : ControllerBase
+```json
 {
-    private readonly GeminiOcrService _ocrService;
-    private readonly ILogger<MyOcrController> _logger;
-
-    public MyOcrController(GeminiOcrService ocrService, ILogger<MyOcrController> logger)
-    {
-        _ocrService = ocrService;
-        _logger = logger;
-    }
-
-    [HttpPost("extract-from-upload")]
-    [Consumes("multipart/form-data")]
-    [Produces("text/plain")]
-    public async Task<IActionResult> ExtractTextFromUpload([FromForm] IFormFile file)
-    {
-        if (file == null || file.Length == 0)
-        {
-            return BadRequest("No file uploaded or file is empty.");
-        }
-
-        // Basic MIME type validation
-        if (!file.ContentType.StartsWith("image/"))
-        {
-            return BadRequest("Unsupported file type. Please upload an image (e.g., JPEG, PNG).");
-        }
-
-        using var memoryStream = new MemoryStream();
-        await file.CopyToAsync(memoryStream);
-        byte[] imageData = memoryStream.ToArray();
-
-        string extractedText = await _ocrService.ExtractTextFromImageAsync(imageData, file.ContentType);
-
-        if (string.IsNullOrEmpty(extractedText))
-        {
-            return Ok("No text found in the image.");
-        }
-
-        return Ok(extractedText);
-    }
+  "success": true,
+  "data": {
+    "name": "PinrismLabs",
+    "birthDate": "1997-08-25",
+    "address": "Cairo, Egypt",
+    "rawText": "PinrismLabs\nDate of Birth: 1997-08-25\nAddress: Cairo, Egypt"
+  },
+  "meta": {
+    "fileName": "id-card.jpg",
+    "mimeType": "image/jpeg",
+    "length": 320582
+  }
 }
-
 ```
+
+The API preserves the transcription in `rawText`. It recognizes single-line
+English labels for name, birth date, and address, plus the unlabeled name in
+the example above. Missing fields and dates outside the ISO `YYYY-MM-DD`
+format are returned as `null`.
+
+The endpoint returns `{"success":false,"error":"..."}` for missing, empty,
+or unsupported files (400), Gemini failures (502), provider timeouts (504),
+and unexpected errors (500). A completed OCR request with blank text returns
+200 with the same error shape and the message `No text found in the image.`.
 
 ## API Reference (Key Class)
 
