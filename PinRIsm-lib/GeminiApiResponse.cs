@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +16,9 @@ namespace PinRism.Lib
 
     public class Candidate
     {
+        [JsonPropertyName("finishReason")]
+        public string? FinishReason { get; set; }
+
         [JsonPropertyName("content")]
         public Content? Content { get; set; }
     }
@@ -28,6 +31,9 @@ namespace PinRism.Lib
 
     public class Part
     {
+        [JsonPropertyName("thought")]
+        public bool Thought { get; set; }
+
         [JsonPropertyName("text")]
         public string? Text { get; set; }
     }
